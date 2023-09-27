@@ -94,7 +94,7 @@ def main():
     for i in tqdm(range(len(trainloader_ood))):
         # num_few_shots = (i+1) * args.batch_size
         # print(f'train using {num_few_shots} images. ({i+1} batches of {args.batch_size})')
-        train(net=net, trainloader=trainloader_ood, epochs=1, iterations=1)
+        train(net=net, trainloader=trainloader_ood, epochs=1)#, iterations=1)
         # print('Original test set. Expect degraded acc')
         loss, acc = test(net=net, testloader=testloader)
         losses_on_original.append(loss)
