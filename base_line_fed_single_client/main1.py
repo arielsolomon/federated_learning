@@ -8,6 +8,7 @@ from dataloaders.data_loaders_factory import get_data_loaders
 from multi_process_federated.federated_trainer import federated_train
 from trainers.fine_tune_train import fine_tune_train, freeze_all_layers_but_last
 from trainers.simple_trainer import evaluate_on_loaders
+from models.sixty_min_blitz_cnn import Net
 
 
 # Function to parse command-line arguments
@@ -32,7 +33,7 @@ def get_command_line_arguments(parser):
     parser.add_argument("--avg-orig", type=bool, default=True,
                         help='Use `Robust fine-tuning of zero-shot model (https://arxiv.org/abs/2109.01903)`.'
                              ' Average the fine tuned model and the pre trained model')
-    parser.add_argument("--freeze-all-but-last", type=int, default=0,
+    parser.add_argument("--freeze-all-but-last", type=int, default=3,
                         help='Use `Fine-Tuning can Distort Pretrained Features and'
                              ' Underperform Out-of-Distribution (https://arxiv.org/abs/2202.10054)`.'
                              ' fine tune the classification head (last n linear layers in the case of'
@@ -41,7 +42,7 @@ def get_command_line_arguments(parser):
     parser.add_argument("--load-from", type=str,
                         default='./saved_models/resnet18.pt',
                         help='Load a pretrained model from given path. Train from scratch if string empty')
-    parser.add_argument("--preform-pretrain", type=bool, default=False,
+    parser.add_argument("--preform-pretrain", type=bool, default=True,
                         help='Train model in a federated manner before fine tuning')
 
     parser.add_argument("--use-cuda", type=bool, default=True,
@@ -61,10 +62,10 @@ def main():
     parser = argparse.ArgumentParser(description="Private Federated Learning Flower")
 
     args = get_command_line_arguments(parser)
-
-    device = torch.device(
-        "cuda:0" if torch.cuda.is_available() and args.use_cuda else "cpu"
-    )
+    net1 = Net()
+    device = torch.device('cpu')#torch.device(
+    #     "cuda:0" if torch.cuda.is_available() and args.use_cuda else "cpu"
+    # )
 
     # Initialize the neural network model
     net = get_model(args.model_name).to(device)
@@ -74,7 +75,9 @@ def main():
     #     assert os.path.exists(
     #         args.load_from), f'Given path for pre-trained weights does not exist. Got {args.load_from}'
     #     net.load_state_dict(torch.load(args.load_from))
-    net = torch.load('saved_models/resnet18.pt')
+    #net = torch.load('saved_models/resnet18.pt')
+    net = net1
+
 
     # Load data loaders for training and testing
     train_loader, train_loader_ood, test_loader, test_loader_ood = get_data_loaders(data_path=args.data_path,
@@ -95,7 +98,7 @@ def main():
     # Evaluate the model on the provided loaders
     [base_accuracy_on_regular_data, base_accuracy_on_ood_data] = evaluate_on_loaders(net=net, loaders=[test_loader,
                                                                                                        test_loader_ood])
-
+    args.freeze_all_but_last = True
     if args.freeze_all_but_last:
         assert args.load_from or args.preform_pretrain, 'Freeze random weights???'
         assert args.freeze_all_but_last > 0, \
