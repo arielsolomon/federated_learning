@@ -1,40 +1,17 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[2]:
-
-
-#!pip install -q flwr[simulation] 
-
-
-# In[3]:
-
-
 from collections import OrderedDict
 from typing import List, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torchvision
-import torchvision.transforms as transforms
-from torch.utils.data import DataLoader, random_split
-from torchvision.datasets import CIFAR10
 
 import flwr as fl
 from flwr.common import Metrics
-
+from utils import load_datasets, Net
 DEVICE = torch.device("cpu")  # Try "cuda" to train on GPU
 print(
     f"Training on {DEVICE} using PyTorch {torch.__version__} and Flower {fl.__version__}"
 )
-
-
-# # start with simple demo of basic federated learning without flwr
-
-# In[4]:
 
 
 CLASSES = (
@@ -49,102 +26,13 @@ CLASSES = (
     "ship",
     "truck",
 )
-
-
-# In[5]:
-
-
-NUM_CLIENTS = 10
-
-
-# In[6]:
-
-
-# Idea: create multiple dataset as in from multiple devices in federated
+NUM_CLIENTS = 1
 
 BATCH_SIZE = 32
 
-def load_datasets():
-    # Download and transform CIFAR-10 (train and test)
-    transform = transforms.Compose(
-        [transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
-    )
-    trainset = CIFAR10("./dataset", train=True, download=True, transform=transform)
-    testset = CIFAR10("./dataset", train=False, download=True, transform=transform)
 
-    # Split training set into 10 partitions to simulate the individual dataset
-    partition_size = len(trainset) // NUM_CLIENTS
-    lengths = [partition_size] * NUM_CLIENTS
-    datasets = random_split(trainset, lengths, torch.Generator().manual_seed(42))
-
-    # Split each partition into train/val and create DataLoader
-    trainloaders = []
-    valloaders = []
-    for ds in datasets:
-        len_val = len(ds) // 10  # 10 % validation set
-        len_train = len(ds) - len_val
-        lengths = [len_train, len_val]
-        ds_train, ds_val = random_split(ds, lengths, torch.Generator().manual_seed(42))
-        trainloaders.append(DataLoader(ds_train, batch_size=BATCH_SIZE, shuffle=True))
-        valloaders.append(DataLoader(ds_val, batch_size=BATCH_SIZE))
-    testloader = DataLoader(testset, batch_size=BATCH_SIZE)
-    return trainloaders, valloaders, testloader
-
-
-trainloaders, valloaders, testloader = load_datasets()
-
-
-# In[7]:
-
-
-images, labels = next(iter(trainloaders[0]))
-
-# Reshape and convert images to a NumPy array
-# matplotlib requires images with the shape (height, width, 3)
-images = images.permute(0, 2, 3, 1).numpy()
-# Denormalize
-images = images / 2 + 0.5
-
-# Create a figure and a grid of subplots
-fig, axs = plt.subplots(4, 8, figsize=(12, 6))
-
-# Loop over the images and plot them
-for i, ax in enumerate(axs.flat):
-    ax.imshow(images[i])
-    ax.set_title(CLASSES[labels[i]])
-    ax.axis("off")
-
-# Show the plot
-fig.tight_layout()
-plt.show()
-
-
-# In[8]:
-
-
-class Net(nn.Module):
-    def __init__(self) -> None:
-        super(Net, self).__init__()
-        self.conv1 = nn.Conv2d(3, 6, 5)
-        self.pool = nn.MaxPool2d(2, 2)
-        self.conv2 = nn.Conv2d(6, 16, 5)
-        self.fc1 = nn.Linear(16 * 5 * 5, 120)
-        self.fc2 = nn.Linear(120, 84)
-        self.fc3 = nn.Linear(84, 10)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.pool(F.relu(self.conv1(x)))
-        x = self.pool(F.relu(self.conv2(x)))
-        x = x.view(-1, 16 * 5 * 5)
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-        return x
-
-
-# In[9]:
-
-
+trainloaders, testloader = load_datasets(BATCH_SIZE)
+net = Net()
 # training function
 def train(net, trainloader, epochs: int, verbose=False):
     """Train the network on the training set."""
