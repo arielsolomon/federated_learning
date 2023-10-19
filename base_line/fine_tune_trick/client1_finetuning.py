@@ -15,7 +15,7 @@ import copy
 
 warnings.filterwarnings("ignore", category=UserWarning)
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-model_name = "resnet18"
+model_name = "resnet34"
 #model_name = model_name
 # Choose the ResNet model you want to load
 net = load_pretrained_resnet_cifar10(model_name).to(DEVICE)
@@ -26,7 +26,7 @@ _,accuracy_list_on_original = evaluate_on_loaders(net, testloader, DEVICE)
 _,accuracy_list_on_ood = evaluate_on_loaders(net, testloader_ood, DEVICE)
 current_datetime = datetime.now()
 current_time = current_datetime.strftime("%d_%m_%y")
-native_file_name, aug_file_name = current_time+'_native_fine_tune_train.npy', current_time+'_aug_fine_tune_train.npy'
+native_file_name, aug_file_name = current_time+'_'+model_name+'_'+'_native_fine_tune_train.npy', current_time+'_'+model_name+'_'+'_aug_fine_tune_train.npy'
 
 orig_pretrained_net = copy.deepcopy(net)
 for _ in tqdm(range(len(trainloader))):
